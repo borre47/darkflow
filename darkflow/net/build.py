@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Aug 18 23:52:15 2020
+
+@author: oscar.frausto.perez
+"""
+
 import tensorflow as tf
 import time
 from . import help
@@ -10,7 +17,6 @@ import json
 import os
 
 class TFNet(object):
-
 	_TRAINER = dict({
 		'rmsprop': tf.train.RMSPropOptimizer,
 		'adadelta': tf.train.AdadeltaOptimizer,
@@ -22,7 +28,7 @@ class TFNet(object):
 		'sgd': tf.train.GradientDescentOptimizer
 	})
 
-	# imported methods
+    # imported methods
 	_get_fps = help._get_fps
 	say = help.say
 	train = flow.train
@@ -77,7 +83,9 @@ class TFNet(object):
 				self.setup_meta_ops()
 		self.say('Finished in {}s\n'.format(
 			time.time() - start))
-	
+        
+        
+    
 	def build_from_pb(self):
 		with tf.gfile.FastGFile(self.FLAGS.pbLoad, "rb") as f:
 			graph_def = tf.GraphDef()
@@ -172,6 +180,31 @@ class TFNet(object):
 		os.makedirs(os.path.dirname(name), exist_ok=True)
 		#Save dump of everything in meta
 		with open('built_graph/{}.meta'.format(self.meta['name']), 'w') as fp:
+			json.dump(self.meta, fp)
+		self.say('Saving const graph def to {}'.format(name))
+		graph_def = tfnet_pb.sess.graph_def
+		tf.train.write_graph(graph_def,'./', name, False)
+        
+        
+    
+	def savepb_path(self,path):
+		"""
+		Create a standalone const graph def that 
+		C++	can load and run.
+		"""
+		darknet_pb = self.to_darknet()
+		flags_pb = self.FLAGS
+		flags_pb.verbalise = False
+		
+		flags_pb.train = False
+		# rebuild another tfnet. all const.
+		tfnet_pb = TFNet(flags_pb, darknet_pb)		
+		tfnet_pb.sess = tf.Session(graph = tfnet_pb.graph)
+		# tfnet_pb.predict() # uncomment for unit testing
+		name = path+'built_graph/{}.pb'.format(self.meta['name'])
+		os.makedirs(os.path.dirname(name), exist_ok=True)
+		#Save dump of everything in meta
+		with open(path+'built_graph/{}.meta'.format(self.meta['name']), 'w') as fp:
 			json.dump(self.meta, fp)
 		self.say('Saving const graph def to {}'.format(name))
 		graph_def = tfnet_pb.sess.graph_def
